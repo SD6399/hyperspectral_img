@@ -10,6 +10,7 @@ from PIL import Image, ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 size_quadr=16
+size_qr=65
 
 def sort_spis(sp):
     spp = []
@@ -28,7 +29,7 @@ def sort_spis(sp):
 
 
 def big2small(st_qr):
-    qr = np.zeros((65, 65, 3))
+    qr = np.zeros((size_qr, size_qr, 3))
 
     for i in range(0, 1040, size_quadr):
         for j in range(0, 1040, size_quadr):
@@ -39,7 +40,7 @@ def big2small(st_qr):
 
 def img2bin(img):
     k =0
-    matr_avg = np.zeros((65, 65))
+    matr_avg = np.zeros((size_qr, size_qr))
 
     our_avg = np.mean(img)
     for i in range(0, img.shape[0]):
@@ -100,7 +101,42 @@ def exp_smooth(path, alf):
     return f1
 
 
+def disp(path):
+    cnt = 0
+    arr = np.array([])
+
+    d = []
+    while (cnt < 3000):
+        tmp = np.copy(arr)
+        arr = np.asarray(Image.open(path + str(cnt) + ".png")).astype(float)
+        if cnt == 0:
+            d.append(0)
+
+        else:
+            razn = np.abs(arr-tmp)
+            print(np.mean(razn)," kadr ", cnt)
+            d.append(np.mean(razn))
+        cnt += 1
+
+
+
+    avg = sum(d) / len(d)
+    print(avg)
+    vyv = []
+    for i in range(len(d)):
+        if abs((d[i])) > (2*avg):
+            vyv.append(i)
+
+    print(vyv)
+    print(len(vyv))
+    return vyv
+
+
 def embed(my_i, tt, count):
+
+
+    
+    
     cnt = 0
     PATH_IMG = r'D:\dk\university\nirs\some_qr.png'
     fi = math.pi / 2 / 255
@@ -162,10 +198,7 @@ def embed(my_i, tt, count):
     return list0, list1, list0_new, list1_new
 
 
-def extract(alf, tt, my_i, rand_fr):
-
-
-
+def extract(alf, tt, rand_fr):
 
     PATH_VIDEO = r'D:\dk\university\nirs\carrier\True_RB_codH264.avi'
     vidcap = cv2.VideoCapture(PATH_VIDEO)
@@ -192,178 +225,179 @@ def extract(alf, tt, my_i, rand_fr):
 
     cnt = rand_fr
 
+    change_sc=disp(r"D:\dk\university\nirs\extract\frame")
+    change_sc.insert(0, 0)
+    change_sc.append(count)
     g=np.asarray([])
     d = np.asarray([])
     f=d.copy()
     # вычитание усреднённого
-    while (cnt < count - 1):
-        arr = np.asarray(Image.open(r"D:\dk\university\nirs\extract\frame" + str(cnt) + ".png"))
+    for scene in range(1,len(change_sc)):
+        cnt=change_sc[scene-1]
+        while (cnt <  change_sc[scene]):
+            arr = np.asarray(Image.open(r"D:\dk\university\nirs\extract\frame" + str(cnt) + ".png"))
 
 
-        a1 = np.asarray([])
+            a1 = np.asarray([])
 
-        a1 = np.where(arr < f1, 0, arr - f1)
+            a1 = np.where(arr < f1, 0, arr - f1)
 
-        print("diff", cnt)
-        # извлечение ЦВЗ
+            print("diff", cnt)
+            # извлечение ЦВЗ
 
-        arr = a1
-        a = cv2.cvtColor(arr, cv2.COLOR_RGB2YCrCb)
+            arr = a1
+            a = cv2.cvtColor(arr, cv2.COLOR_RGB2YCrCb)
 
-        g = d
-        d = f
+            g = d
+            d = f
 
-        if (cnt == rand_fr):
-            f = a[:, :, 0]
-            d = f.copy()
-            d = np.ones((1080, 1920))
-
-        else:
-            if (cnt == rand_fr + 1):
-                f = 2 * betta * math.cos(tt) * np.float32(d) + np.float32(a[:, :, 0])
+            if (cnt == change_sc[scene-1]):
+                f = a[:, :, 0]
+                d = f.copy()
+                d = np.ones((1080, 1920))
 
             else:
-                f = 2 * betta * math.cos(tt) * np.float32(d) - (betta ** 2) * np.float32(g) + np.float32(a[:, :, 0])
+                if (cnt == change_sc[scene-1] + 1):
+                    f = 2 * betta * math.cos(tt) * np.float32(d) + np.float32(a[:, :, 0])
 
-        yc = np.float32(f) - betta * math.cos(tt) * np.float32(d)
-        ys = betta * math.sin(tt) * np.float32(d)
-        c = math.cos(tt * cnt) * np.float32(yc) + math.sin(tt * cnt) * np.float32(ys)
-        s = math.cos(tt * cnt) * np.float32(ys) - math.sin(tt * cnt) * np.float32(yc)
+                else:
+                    f = 2 * betta * math.cos(tt) * np.float32(d) - (betta ** 2) * np.float32(g) + np.float32(a[:, :, 0])
 
-        flag = False
+            yc = np.float32(f) - betta * math.cos(tt) * np.float32(d)
+            ys = betta * math.sin(tt) * np.float32(d)
+            c = math.cos(tt * cnt) * np.float32(yc) + math.sin(tt * cnt) * np.float32(ys)
+            s = math.cos(tt * cnt) * np.float32(ys) - math.sin(tt * cnt) * np.float32(yc)
 
-        fi = np.where(c < 0, np.arctan((s / c)) + np.pi,
-                      np.where(s >= 0, np.arctan((s / c)), np.arctan((s / c)) + 2 * np.pi))
-        fi = np.where(fi < -np.pi / 4, fi + 2 * np.pi, fi)
-        fi = np.where(fi > 9 * np.pi / 4, fi - 2 * np.pi, fi)
+            flag = False
 
-        wm = 255 * fi / 2 / math.pi
-        # wm[wm>255]=255
-        # wm[wm<0]=0
+            fi = np.where(c < 0, np.arctan((s / c)) + np.pi,
+                          np.where(s >= 0, np.arctan((s / c)), np.arctan((s / c)) + 2 * np.pi))
+            fi = np.where(fi < -np.pi / 4, fi + 2 * np.pi, fi)
+            fi = np.where(fi > 9 * np.pi / 4, fi - 2 * np.pi, fi)
 
-        a1 = wm
-        # a1 = cv2.cvtColor(a1, cv2.COLOR_YCrCb2RGB)
-        img = Image.fromarray(a1.astype('uint8'))
+            wm = 255 * fi / 2 / math.pi
+            # wm[wm>255]=255
+            # wm[wm<0]=0
 
-        # print (wm)
-        img.save(r'D:/dk/university/nirs/extract/wm/result' + str(cnt) + '.png')
-        print('made', cnt)
+            a1 = wm
+            # a1 = cv2.cvtColor(a1, cv2.COLOR_YCrCb2RGB)
+            img = Image.fromarray(a1.astype('uint8'))
 
-        l_kadr = np.asarray(Image.open(r'D:/dk/university/nirs/extract/wm/result' + str(cnt) + '.png'))
+            # print (wm)
+            img.save(r'D:/dk/university/nirs/extract/wm/result' + str(cnt) + '.png')
+            print('made', cnt)
 
-        fi = np.copy(l_kadr)
-        fi_tmp = np.copy(fi)
-        fi = (l_kadr * np.pi * 2) / 255
+            l_kadr = np.asarray(Image.open(r'D:/dk/university/nirs/extract/wm/result' + str(cnt) + '.png'))
 
-        hist, bin_centers = histogram(fi, normalize=False)
+            fi = np.copy(l_kadr)
+            fi_tmp = np.copy(fi)
+            fi = (l_kadr * np.pi * 2) / 255
 
-        dis = []
+            hist, bin_centers = histogram(fi, normalize=False)
 
-        koord1 = np.copy(fi)
+            dis = []
 
-        koord2 = np.copy(fi)
-        koord1 = np.where(fi < np.pi, (fi / np.pi * 2 - 1) * (-1),
-                          np.where(fi > np.pi, ((fi - np.pi) / np.pi * 2 - 1), fi))
-        koord2 = np.where(fi < np.pi / 2, (fi / np.pi / 2),
-                          np.where(fi > 3 * np.pi / 2, ((fi - 1.5 * np.pi) / np.pi * 2) - 1,
-                                   ((fi - 0.5 * np.pi) * 2 / np.pi - 1) * (-1)))
-        hist, bin_centers = histogram(koord1, normalize=False)
-        hist2, bin_centers2 = histogram(koord2, normalize=False)
+            koord1 = np.copy(fi)
 
-        ver = []
-        ver2 = []
-        mx_sp = np.arange(bin_centers[0], bin_centers[-1], bin_centers[1] - bin_centers[0])
-        for i in range(len(hist)):
-            ver.append(hist[i] / sum(hist))
-        mo = moment = 0
-        for i in range(len(hist)):
-            mo += bin_centers[i] * ver[i]
-        for mx in mx_sp:
-            dis.append(abs(mo - mx))
+            koord2 = np.copy(fi)
+            koord1 = np.where(fi < np.pi, (fi / np.pi * 2 - 1) * (-1),
+                              np.where(fi > np.pi, ((fi - np.pi) / np.pi * 2 - 1), fi))
+            koord2 = np.where(fi < np.pi / 2, (fi / np.pi / 2),
+                              np.where(fi > 3 * np.pi / 2, ((fi - 1.5 * np.pi) / np.pi * 2) - 1,
+                                       ((fi - 0.5 * np.pi) * 2 / np.pi - 1) * (-1)))
+            hist, bin_centers = histogram(koord1, normalize=False)
+            hist2, bin_centers2 = histogram(koord2, normalize=False)
 
-        pr1 = 0
-        pr2 = 0
-        for i in range(len(dis)):
-            if min(dis) == dis[i]:
-                pr1 = (bin_centers[i])
+            ver = []
+            ver2 = []
+            mx_sp = np.arange(bin_centers[0], bin_centers[-1], bin_centers[1] - bin_centers[0])
+            for i in range(len(hist)):
+                ver.append(hist[i] / sum(hist))
+            mo = moment = 0
+            for i in range(len(hist)):
+                mo += bin_centers[i] * ver[i]
+            for mx in mx_sp:
+                dis.append(abs(mo - mx))
 
-        mx_sp2 = np.array([])
-        dis2 = []
-        mx_sp2 = np.arange(bin_centers2[0], bin_centers2[-1], bin_centers2[1] - bin_centers2[0])
-        for i in range(len(hist2)):
-            ver2.append(hist2[i] / sum(hist2))
-        mo = 0
-        for i in range(len(hist2)):
-            mo += bin_centers2[i] * ver2[i]
-        for mx in mx_sp2:
-            dis2.append(abs(mo - mx))
+            pr1 = 0
+            pr2 = 0
+            for i in range(len(dis)):
+                if min(dis) == dis[i]:
+                    pr1 = (bin_centers[i])
 
-        x = min(dis2)
+            mx_sp2 = np.array([])
+            dis2 = []
+            mx_sp2 = np.arange(bin_centers2[0], bin_centers2[-1], bin_centers2[1] - bin_centers2[0])
+            for i in range(len(hist2)):
+                ver2.append(hist2[i] / sum(hist2))
+            mo = 0
+            for i in range(len(hist2)):
+                mo += bin_centers2[i] * ver2[i]
+            for mx in mx_sp2:
+                dis2.append(abs(mo - mx))
 
-        for i in range(len(dis2)):
-            if x == dis2[i]:
-                pr2 = bin_centers2[i]
+            x = min(dis2)
 
-        moment = np.where(pr1 < 0, np.arctan((pr2 / pr1)) + np.pi,
-                          np.where(pr2 >= 0, np.arctan((pr2 / pr1)), np.arctan((pr2 / pr1)) + 2 * np.pi))
+            for i in range(len(dis2)):
+                if x == dis2[i]:
+                    pr2 = bin_centers2[i]
 
-        if (moment >= np.pi / 4 and moment <= np.pi * 2 - np.pi / 4):
-            fi_tmp = fi - moment + 0.5 * np.pi * 0.5
-            fi_tmp = np.where(fi_tmp < -np.pi / 4, fi_tmp + 2 * np.pi, fi_tmp)
-            fi_tmp = np.where(fi_tmp > 9 * np.pi / 4, fi_tmp - 2 * np.pi, fi_tmp)
+            moment = np.where(pr1 < 0, np.arctan((pr2 / pr1)) + np.pi,
+                              np.where(pr2 >= 0, np.arctan((pr2 / pr1)), np.arctan((pr2 / pr1)) + 2 * np.pi))
 
-
-        elif (moment > np.pi * 2 - np.pi / 4):
-            fi = np.where(fi < np.pi / 4, fi + 2 * np.pi, fi)
-            fi_tmp = fi - moment + 0.5 * np.pi * 0.5
-            fi_tmp = np.where(fi_tmp < -np.pi, fi_tmp + 2 * np.pi, fi_tmp)
-            fi_tmp = np.where(fi_tmp > 9 * np.pi / 4, fi_tmp - 2 * np.pi, fi_tmp)
-
-        elif (moment < np.pi / 4):
-            fi_tmp = fi - 2 * np.pi - moment + 0.5 * np.pi * 0.5
-            fi_tmp = np.where(fi_tmp < -np.pi / 4, fi_tmp + 2 * np.pi, fi_tmp)
-            fi_tmp = np.where(fi_tmp > 9 * np.pi / 4, fi_tmp - 2 * np.pi, fi_tmp)
-
-        print(my_exit)
-        fi_tmp[fi_tmp < 0] = 0
-        fi_tmp[fi_tmp > np.pi] = np.pi
-        l_kadr = fi_tmp * 255 / (np.pi)
-
-        cp = l_kadr.copy()
-        imgc = Image.fromarray(cp.astype('uint8'))
-        imgc.save(r"D:\dk\university\nirs\extract\wm\wm_must" + str(cnt) + ".png")
-        pict = np.zeros((1080, 1920))
-
-        for i in range(len(list1)):
-            pict[4 + list1[i][0] * size_quadr:4 + list1[i][0] * size_quadr + size_quadr, list1[i][1] * size_quadr:list1[i][1] * size_quadr + size_quadr] = \
-                cp[list1_new[i][0] * size_quadr:list1_new[i][0] *size_quadr + size_quadr, list1_new[i][1] * size_quadr: list1_new[i][1] * size_quadr + size_quadr]
-        for i in range(len(list0)):
-            pict[4 + list0[i][0] *size_quadr:4 + list0[i][0] * size_quadr + size_quadr, list0[i][1] * size_quadr:list0[i][1] * size_quadr + size_quadr] = \
-                cp[list0_new[i][0] * size_quadr:list0_new[i][0] * size_quadr + size_quadr, list0_new[i][1] * size_quadr: list0_new[i][1] * size_quadr + size_quadr]
-
-        c_qr = pict[20:1060, 432:1472]
-
-        small_new_qr=np.zeros((65,65))
-
-        small_qr=big2small(c_qr)
-
-        imgc = Image.fromarray(small_qr.astype('uint8'))
-        imgc.save(r"D:\dk\university\nirs\extract\wm\wm_must\sorry\comparing" + str(cnt) + ".png")
+            if (moment >= np.pi / 4 and moment <= np.pi * 2 - np.pi / 4):
+                fi_tmp = fi - moment + 0.5 * np.pi * 0.5
+                fi_tmp = np.where(fi_tmp < -np.pi / 4, fi_tmp + 2 * np.pi, fi_tmp)
+                fi_tmp = np.where(fi_tmp > 9 * np.pi / 4, fi_tmp - 2 * np.pi, fi_tmp)
 
 
+            elif (moment > np.pi * 2 - np.pi / 4):
+                fi = np.where(fi < np.pi / 4, fi + 2 * np.pi, fi)
+                fi_tmp = fi - moment + 0.5 * np.pi * 0.5
+                fi_tmp = np.where(fi_tmp < -np.pi, fi_tmp + 2 * np.pi, fi_tmp)
+                fi_tmp = np.where(fi_tmp > 9 * np.pi / 4, fi_tmp - 2 * np.pi, fi_tmp)
 
-        small_new_qr[0:32, 0:32] = img2bin(small_qr[0:32, 0:32,0])
-        small_new_qr[32:65, 0:32] = img2bin(small_qr[32:65, 0:32,0])
-        small_new_qr[0:32, 32:65] = img2bin(small_qr[0:32, 32:65,0])
-        small_new_qr[32:65, 32:65] = img2bin(small_qr[32:65, 32:65,0])
+            elif (moment < np.pi / 4):
+                fi_tmp = fi - 2 * np.pi - moment + 0.5 * np.pi * 0.5
+                fi_tmp = np.where(fi_tmp < -np.pi / 4, fi_tmp + 2 * np.pi, fi_tmp)
+                fi_tmp = np.where(fi_tmp > 9 * np.pi / 4, fi_tmp - 2 * np.pi, fi_tmp)
 
-        mgc = Image.fromarray(small_new_qr.astype('uint8'))
-        mgc.save(r"D:\dk\university\nirs\extract\wm\wm_must\compare/compar" + str(cnt) + ".png")
-        if (cnt % 200) == 0 or (cnt == 2998):
-            stop_kadr2.append(compare(r"D:\dk\university\nirs\extract\wm\wm_must\compare/compar" + str(cnt) + ".png"))
+            print(my_exit)
+            fi_tmp[fi_tmp < 0] = 0
+            fi_tmp[fi_tmp > np.pi] = np.pi
+            l_kadr = fi_tmp * 255 / (np.pi)
 
-            print("mod 200 ", cnt)
-        cnt += 1
+            cp = l_kadr.copy()
+            imgc = Image.fromarray(cp.astype('uint8'))
+            imgc.save(r"D:\dk\university\nirs\extract\wm\result" + str(cnt) + ".png")
+            pict = np.zeros((1080, 1920))
+
+            for i in range(len(list1)):
+                pict[4 + list1[i][0] * size_quadr:4 + list1[i][0] * size_quadr + size_quadr, list1[i][1] * size_quadr:list1[i][1] * size_quadr + size_quadr] = \
+                    cp[list1_new[i][0] * size_quadr:list1_new[i][0] *size_quadr + size_quadr, list1_new[i][1] * size_quadr: list1_new[i][1] * size_quadr + size_quadr]
+            for i in range(len(list0)):
+                pict[4 + list0[i][0] *size_quadr:4 + list0[i][0] * size_quadr + size_quadr, list0[i][1] * size_quadr:list0[i][1] * size_quadr + size_quadr] = \
+                    cp[list0_new[i][0] * size_quadr:list0_new[i][0] * size_quadr + size_quadr, list0_new[i][1] * size_quadr: list0_new[i][1] * size_quadr + size_quadr]
+
+            c_qr = pict[20:1060, 432:1472]
+
+            small_new_qr=np.zeros((size_qr,size_qr))
+
+            small_qr=big2small(c_qr)
+
+            imgc = Image.fromarray(small_qr.astype('uint8'))
+            imgc.save(r"D:\dk\university\nirs\extract\wm\wm_must\sorry\comparing" + str(cnt) + ".png")
+
+
+
+            small_new_qr = img2bin(small_qr[:,:,0])
+            mgc = Image.fromarray(small_new_qr.astype('uint8'))
+            mgc.save(r"D:\dk\university\nirs\extract\wm\wm_must\compare/compar" + str(cnt) + ".png")
+            if (cnt % 200) == 0 or (cnt == 2998):
+                stop_kadr2.append(compare(r"D:\dk\university\nirs\extract\wm\wm_must\compare/compar" + str(cnt) + ".png"))
+
+                print("mod 200 ", cnt)
+            cnt += 1
 
     # повторное сглаживание
     count = 3000
@@ -378,7 +412,7 @@ def extract(alf, tt, my_i, rand_fr):
         g2 = f2
         if (cnt == 0):
             f2 = arr.copy()
-            g2 = np.zeros((65, 65))
+            g2 = np.zeros((size_qr, size_qr))
         else:
             # y(n)=alfa*y(n-1)+x(n)*(1-alfa)
             f2 = g2 * alf2 + arr * (1 - alf2)
@@ -435,14 +469,14 @@ def compare(p):  # сравнивание извлечённого QR с исх�
     qr = io.imread(r'D:\dk\university\nirs\some_qr.png')
     qr = np.where(qr > 129, 255, 0)
     sm_qr=big2small(qr)
-    sr_matr = np.zeros((65, 65))
+    sr_matr = np.zeros((size_qr, size_qr))
     myqr = io.imread(p)
     myqr = np.where(myqr > 129, 255, 0)
 
     k = 0
     mas_avg = []
-    for i in range(0, 65):
-        for j in range(0, 65):
+    for i in range(0, size_qr):
+        for j in range(0, size_qr):
             if np.mean(sm_qr[i, j]) == np.mean(myqr[i, j]):
                 sr_matr[int(i), int(j)] = 1
                 mas_avg.append(1)
@@ -459,7 +493,7 @@ def compare(p):  # сравнивание извлечённого QR с исх�
 i = 1
 my_exit = []
 alfa = 0.93
-tetta = 0.4
+tetta = 0.3
 squ_size = 4
 for_fi = 6
 # dispr=1
@@ -475,7 +509,7 @@ PATH_VIDEO = r'D:\dk\university\nirs\RealBarcaHighlights_HD (online-video-cutter
 rand_k = 0
 count = 3000
 
-while (tetta < 2.82):
+while (tetta < 3.02):
     list0, list1, list0_new, list1_new = embed(i, tetta, count)
     print("number's shuffle squares", list0),
     print(list1)
@@ -484,14 +518,14 @@ while (tetta < 2.82):
     generate_video()
 
     sp = []
-    a = extract(alfa, tetta, i, rand_k)
+    a = extract(alfa, tetta, rand_k)
 
     my_exit.append(compare("D:/dk/university/nirs/extract/wm/wm_must/result2998.png"))
     print("current percent", stop_kadr1)
     print("current percent", stop_kadr2)
     print("current percent", stop_kadr3)
     # i+=1
-    tetta += 1.3
+    tetta += 1
 
 print(my_exit)
 
