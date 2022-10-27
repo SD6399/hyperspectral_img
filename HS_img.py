@@ -19,11 +19,11 @@ from statistics import mean
 
 
 def init2matr(name):
-    mat = scipy.io.loadmat(name + '_corrected.mat')
+    mat = scipy.io.loadmat(name + '.mat')
     gt = scipy.io.loadmat(name + '_gt.mat')
-    shape = mat[name + '_corrected'].shape
+    shape = mat[name + ''].shape
     gt_np = gt[name + '_gt']
-    mat_np = mat[name + '_corrected']
+    mat_np = mat[name + '']
     mat_np = np.where(mat_np > 65000, 2 ** 16 - mat_np, mat_np)
     mat_np = np.where(mat_np < 0, np.abs(mat_np), mat_np)
 
@@ -99,8 +99,6 @@ def classify_dec_tree(X, y, tst_sz):
     print("Accuracy Decision Tree: %.3f" % mean(list_acc), name)
 
 
-
-
 def classify_SVM(X, y, tst_sz):
     list_acc = []
     for rs in range(40, 45):
@@ -124,9 +122,6 @@ def disper_chanel(chn):
         x_quadr = np.mean(tmp ** 2)
         x2 = (np.mean(tmp)) ** 2
         disp_list.append(x_quadr - x2)
-
-        img = Image.fromarray(tmp.astype('uint8'))
-        img.convert('RGB').save(r"image" + str(cnt) + ".png")
         cnt += 1
 
     return disp_list
@@ -137,11 +132,10 @@ def disper_noise():
     disp_list = []
 
     while cnt < shape[2]:
-        img = mat_data[:, :, cnt].astype('int64')
+        img = mat_data[:, :, cnt].astype('int32')
         filt_img = median_filter(img, size=3)
         diff_img = img - filt_img
         disp_list.append(np.mean(diff_img ** 2) - (np.mean(diff_img)) ** 2)
-
         cnt += 1
 
     return disp_list
@@ -162,19 +156,12 @@ def extract(c, cw, delt, ampl):
     return w
 
 
-def mse(actual, pred):
-    return np.square(actual - pred).mean()
-
-
 def embed_to_pix(cont, wm, delt, vol_wm, count_prior_canal):
     matrix = np.zeros((len(list_gt), shape[2]))
 
     rng = np.random.default_rng(42)
     random_pix = rng.choice(list_gt, int(len(list_gt) * vol_wm), replace=False).tolist()
     random_pix.sort()
-
-    val=np.array(mfl)
-    sort_val= np.array(mfl).sort
 
     if delt:
         sort_canal = np.array(mfl).argsort()[0:count_prior_canal]
@@ -210,7 +197,7 @@ def search_alfa(mse_for_compare):
             # dsp_noise[i] = np.sqrt(dsp_canal[i])
             dsp_noise[i] *= alfa
         cw_img = old_embed(mat_data, wm, dsp_noise)
-        mse_res1 = mse(mat_data, cw_img)
+        mse_res1 = mean_squared_error(mat_data, cw_img)
         print("alfa=", alfa, ":", mse_res1)
 
         alfa += inc
@@ -218,11 +205,8 @@ def search_alfa(mse_for_compare):
     return alfa - inc
 
 
-name = 'indian_pines'
-
+name = 'KSC'
 list_gt = []
-# alfa=f(mse_for_compare)
-# print("alfa=",alfa)
 list_mse = []
 shape, mat_gt, mat_data, = init2matr(name)
 print(shape)
@@ -235,9 +219,6 @@ for i in range(shape[0]):
             list_gt.append([i, j])
 
 # dsp_noise=disper_noise()
-# cw_try_img = embed(mat_data, wm,list_const)
-
-
 dsp_canal = disper_chanel(shape[2])
 
 # alfa=search_alfa()
@@ -257,45 +238,25 @@ for i in range(len(list_gt)):
     for cnt in range(shape[2]):
         tmp = list_gt[cnt]
         tmp2 = list_gt[cnt][0]
-
         matrix_must_pix_orig[i, cnt] = mat_data[list_gt[i][0], list_gt[i][1], cnt].astype('int32')
 
 X1 = matrix_must_pix_orig.tolist()
 # classify_SVM(X1, y, 0.25)
 # classify_RFC(X1,y,0.25)
 # classify_dec_tree(X1,y,0.25)
-#mean_feat = classify_XGB(X1, y, 0.25)
 mean_feat = classify_XGB(X1, y, 0.25)
-
-# with open('KSC_features.csv', 'r') as f:
-#     mean_feat = list(csv.reader(f, delimiter=","))
-#
 
 mean_feat_list = np.mean(mean_feat, axis=0)
 mfl = mean_feat_list.tolist()
-#
-
-
-all_cnl=[50,75,103]
-
 mse_list=[]
 
-for cnl in np.arange(3.8e-05,3.81e-05,1e-08):
+for cnl in np.arange(50,shape[2],40):
     dsp_canal = disper_chanel(shape[2])
     for i in range(len(dsp_canal)):
         dsp_canal[i] *= cnl
-        #list_const = [13] * shape[2]
-    #for chn in range(40,103,20):
-    matrix_must_pix = embed_to_pix(mat_data, wm,dsp_canal,1, 80)
-    # cw_img = old_embed(mat_data, wm, dsp_canal)
-    #
-    # for i in range(len(list_gt)):
-    #     for cnt in range(shape[2]):
-    #         tmp = list_gt[cnt]
-    #         tmp2 = list_gt[cnt][0]
-    #
-    #         matrix_must_pix[i, cnt] = cw_img[list_gt[i][0], list_gt[i][1], cnt].astype('int32')
+    #list_const = [13] * shape[2]
 
+    matrix_must_pix = embed_to_pix(mat_data, wm,dsp_canal,1, cnl)
     X = matrix_must_pix.tolist()
     classify_XGB(X, y, 0.25)
     mse_list.append(mean_squared_error(matrix_must_pix, matrix_must_pix_orig))
@@ -307,30 +268,9 @@ print(mse_list)
 # classify_dec_tree(X, y, 0.25)
 classify_XGB(X, y, 0.25)
 
-
-#cw_img = old_embed(mat_data, wm, list_const)
-
-# for i in range(len(list_gt)):
-#     for cnt in range(shape[2]):
-#         tmp = list_gt[cnt]
-#         tmp2 = list_gt[cnt][0]
-#
-#         matrix_must_pix[i, cnt] = cw_img[list_gt[i][0], list_gt[i][1], cnt].astype('int32')
-
-
-
-# classify_SVM(X, y, 0.25)
-# classify_RFC(X, y, 0.25)
-# classify_dec_tree(X, y, 0.25)
-#classify_XGB(X, y, 0.25)
-
 n_c = 12
 pca = PCA(n_components=n_c)
 XPCA = pca.fit_transform(matrix_must_pix)
-
 X_PCA_list = XPCA.tolist()
 print("PCA classify for %d components" % n_c)
-# classify_SVM(X_PCA,y,0.25)
-# classify_RFC(X_PCA,y,0.25)
-# classify_dec_tree(X_PCA,y,0.25)
 classify_XGB(X_PCA_list, y, 0.25)
