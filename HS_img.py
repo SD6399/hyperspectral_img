@@ -35,13 +35,13 @@ def init2matr(name):
 
 def classify_RFC(X, y, tst_sz):
     list_acc = []
-    feat_list=[]
+    feat_list = []
     for rs in range(40, 45):
         np.random.seed(rs)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=tst_sz, random_state=rs)
 
         np.random.seed(rs)
-        rfc = RandomForestClassifier(random_state=42,n_estimators=100)
+        rfc = RandomForestClassifier(random_state=42, n_estimators=100)
         rfc.fit(X_train, y_train)
 
         feat_list.append(rfc.feature_importances_)
@@ -71,7 +71,7 @@ def classify_XGB(X, y, tst_sz):
         np.random.seed(rs)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=tst_sz, random_state=rs)
         np.random.seed(rs)
-        model = XGBClassifier(random_state=42,use_label_encoder=False, eval_metric='mlogloss')
+        model = XGBClassifier(random_state=42, use_label_encoder=False, eval_metric='mlogloss')
         model.fit(X_train, y_train)
         feat_list.append(model.feature_importances_)
         y_pred = model.predict(X_test)
@@ -169,7 +169,7 @@ def embed_to_pix(cont, wm, delt, vol_wm, count_prior_canal):
         sort_canal = []
 
     for i in range(len(list_gt)):
-        if i % 200==0:
+        if i % 200 == 0:
             print(i)
         for cnt in range(shape[2]):
             if (cnt in sort_canal) and (list_gt[i] in random_pix):
@@ -205,6 +205,38 @@ def search_alfa(mse_for_compare):
     return alfa - inc
 
 
+def select_param_4_embed(func, kef):
+
+    dsp_canal = func
+
+    for i in range(len(dsp_noise)):
+        # dsp_canal[i] = np.sqrt(dsp_canal[i])
+        dsp_canal[i] *= kef
+
+    return dsp_canal
+
+
+def preprocess_y():
+    for i in range(shape[0]):
+        for j in range(shape[1]):
+            if mat_gt[i][j] != 0:
+                list_gt.append([i, j])
+    y = []
+    for i in range(len(list_gt)):
+        y.append(mat_gt[list_gt[i][0], list_gt[i][1]])
+
+    return y
+
+
+def preprocess_x():
+    matrix_must_pix_orig = np.zeros((len(list_gt), shape[2]))
+    for i in range(len(list_gt)):
+        for cnt in range(shape[2]):
+            matrix_must_pix_orig[i, cnt] = mat_data[list_gt[i][0], list_gt[i][1], cnt].astype('int32')
+    X = matrix_must_pix_orig.tolist()
+    return X
+
+
 name = 'KSC'
 list_gt = []
 list_mse = []
@@ -213,34 +245,9 @@ print(shape)
 np.random.seed(42)
 wm = np.random.randint(0, 2, size=(shape[0] * shape[1] * shape[2]))
 
-for i in range(shape[0]):
-    for j in range(shape[1]):
-        if mat_gt[i][j] != 0:
-            list_gt.append([i, j])
-
-# dsp_noise=disper_noise()
-dsp_canal = disper_chanel(shape[2])
-
-# alfa=search_alfa()
-
-# print("yes alfa=",alfa)
-# for i in range(len(dsp_noise)):
-#      #dsp_canal[i] = np.sqrt(dsp_canal[i])
-#      dsp_noise[i]*=0.000367
-
-matrix_must_pix_orig = np.zeros((len(list_gt), shape[2]))
+select_param_4_embed(disper_chanel(shape[2]), 0.0037)
 matrix_must_pix = np.zeros((len(list_gt), shape[2]))
-y = []
-for i in range(len(list_gt)):
-    y.append(mat_gt[list_gt[i][0], list_gt[i][1]])
 
-for i in range(len(list_gt)):
-    for cnt in range(shape[2]):
-        tmp = list_gt[cnt]
-        tmp2 = list_gt[cnt][0]
-        matrix_must_pix_orig[i, cnt] = mat_data[list_gt[i][0], list_gt[i][1], cnt].astype('int32')
-
-X1 = matrix_must_pix_orig.tolist()
 # classify_SVM(X1, y, 0.25)
 # classify_RFC(X1,y,0.25)
 # classify_dec_tree(X1,y,0.25)
@@ -248,19 +255,19 @@ mean_feat = classify_XGB(X1, y, 0.25)
 
 mean_feat_list = np.mean(mean_feat, axis=0)
 mfl = mean_feat_list.tolist()
-mse_list=[]
+mse_list = []
 
-for cnl in np.arange(50,shape[2],40):
+for cnl in np.arange(50, shape[2], 40):
     dsp_canal = disper_chanel(shape[2])
     for i in range(len(dsp_canal)):
         dsp_canal[i] *= cnl
-    #list_const = [13] * shape[2]
+    # list_const = [13] * shape[2]
 
-    matrix_must_pix = embed_to_pix(mat_data, wm,dsp_canal,1, cnl)
+    matrix_must_pix = embed_to_pix(mat_data, wm, dsp_canal, 1, cnl)
     X = matrix_must_pix.tolist()
     classify_XGB(X, y, 0.25)
     mse_list.append(mean_squared_error(matrix_must_pix, matrix_must_pix_orig))
-    print("MSE new", mean_squared_error(matrix_must_pix, matrix_must_pix_orig),"for %d channel",cnl)
+    print("MSE new", mean_squared_error(matrix_must_pix, matrix_must_pix_orig), "for %d channel", cnl)
 X = matrix_must_pix.tolist()
 print(mse_list)
 # classify_SVM(X, y, 0.25)
