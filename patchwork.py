@@ -4,100 +4,98 @@ import numpy as np
 from statistics import mean
 
 
-def patchwork_embed(X, wm, l,  seed):
+def patchwork_embed(X, wm,alfa, l, seed):
 
-    data_length = X.shape[0]
-    size_part= math.ceil(X.shape[0] / l)
+    data_length = len(np.ravel(X))
+    size_part= math.ceil(X.size / l)
     shuf_order = np.arange(data_length)
     np.random.seed(seed)
     np.random.shuffle(shuf_order)
 
-    pix_val = np.zeros((l, size_part, X.shape[1]))
-
+    pix_val = np.zeros((l, size_part))
+    rav_X= np.ravel(X)
     count = -1
+
+    #pix_val = np.resize(X,(l,size_part))
+
     for i in range(l):
         for j in range(size_part):
             count += 1
-            for cnl in range(X.shape[1]):
-                if count < X.shape[0]:
-                    pix_val[i, j, cnl] = X[shuf_order[count],cnl]
+            if count < data_length:
+                pix_val[i, j] = rav_X[shuf_order[count]]
 
-    count=0
     rn = np.array([x for x in range(0, size_part)])
     np.random.seed(seed)
     np.random.shuffle(rn)
     s1 = sorted(rn[:int(rn.size / 2)])
     s2 = sorted(rn[int(rn.size / 2):])
-    for i in range(l):
-        for j in range(size_part):
-                if j in s1:
-                    pix_val[i,j,:] += wm[count:count+X.shape[1]]
-                if j in s2:
-                    pix_val[i,j,:] -= wm[count:count+X.shape[1]]
-                count+=X.shape[1]
 
-    orig_matr=np.array([])
-    for cnc in range(l):
-        if cnc==0:
-            orig_matr=pix_val[0,:,:]
-        else:
-            orig_matr = np.append(orig_matr,pix_val[cnc,:,:],axis=0)
-    ost= X.shape[0] % l
-    if ost!=0:
-        shuf_matr=orig_matr[:-(l-ost),:]
-    else:
-        shuf_matr= orig_matr
+    pix_val_aft_emb = np.zeros(pix_val.shape)
+    count = 0
+    for j in range(size_part):
+        if j in s1:
+            pix_val_aft_emb[:,j] = pix_val[:,j] + wm[count]*alfa[j]
+            count += 1
+        if j in s2:
+            pix_val_aft_emb[:,j] = pix_val[:,j] - wm[count]*alfa[j]
+            count += 1
+
+    rav_after_emb= np.ravel(pix_val_aft_emb)[:len(rav_X)]
+
     unshuf_order0 = np.zeros_like(shuf_order)
     unshuf_order0[shuf_order] = np.arange(len(shuf_order))
 
     orig_matr = np.zeros(X.shape)
+    count=0
     for i in range(X.shape[0]):
-        orig_matr[i,:] = shuf_matr[unshuf_order0[i],:]
+        for j in range(X.shape[1]):
+            orig_matr[i,j] = rav_after_emb[unshuf_order0[count]]
+            count+=1
 
+    print("embed")
     return orig_matr
 
 
-def patchwork_extract(cw,l,seed):
-    data_length = cw.shape[0]
-    size_part = math.ceil(cw.shape[0] / l)
+def patchwork_extract(cw,l,seed,alf):
+    data_length = len(np.ravel(cw))
+    size_part = math.ceil(cw.size / l)
     shuf_order = np.arange(data_length)
     np.random.seed(seed)
     np.random.shuffle(shuf_order)
-    pix_val = np.zeros((l, size_part, cw.shape[1]))
+    pix_val = np.zeros((l, size_part))
 
-    count = -1
+    rav_X=np.ravel(cw)
+
+    count=-1
     for i in range(l):
         for j in range(size_part):
             count += 1
-            for cnl in range(176):
-                if count < cw.shape[0]:
-                    pix_val[i, j, cnl] = cw[shuf_order[count], cnl]
+            if count < data_length:
+                pix_val[i, j] = rav_X[shuf_order[count]]
 
-    diff_avg = []
+    #pix_val = np.resize(cw, (l, size_part))
+
     rn = np.array([x for x in range(0, size_part)])
     np.random.seed(seed)
     np.random.shuffle(rn)
     s1 = sorted(rn[:int(rn.size / 2)])
     s2 = sorted(rn[int(rn.size / 2):])
+    #for i in range(l):
+    sum1 = np.zeros(l)
+    sum2 = np.zeros(l)
+    for j in range(size_part):
+        if j in s1:
+            sum1 += pix_val[:,j]
+        if j in s2:
+            sum2 += pix_val[:,j]
 
-    for i in range(l):
-        sum1 = 0
-        sum2 = 0
-        for j in range(size_part):
-            for cnl in range(cw.shape[1]):
+    avg1 = sum1 / len(s1)
+    avg2 = sum2 / len(s2)
+    diff_avg=(avg1 - avg2)
 
-                if j in s1:
-                    sum1 += pix_val[i, j, cnl]
+    cnt_need=(diff_avg > (alf/2)).sum()
 
-                if j in s2:
-                    sum2 += pix_val[i, j, cnl]
-
-                avg1 = sum1 / len(s1)
-                avg2 = sum2 / len(s2)
-                diff_avg.append(avg1 - avg2)
-
-
-    print(mean(diff_avg))
-    return mean(diff_avg)
+    print(cnt_need/l)
+    return cnt_need/l
 
 
