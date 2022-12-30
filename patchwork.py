@@ -8,21 +8,16 @@ def patchwork_embed(X, wm,alfa, l, seed):
 
     data_length = len(np.ravel(X))
     size_part= math.ceil(X.size / l)
-    shuf_order = np.arange(data_length)
+    shuf_order = np.arange(X.shape[0])
     np.random.seed(seed)
     np.random.shuffle(shuf_order)
 
-    pix_val = np.zeros((l, size_part))
-    rav_X= np.ravel(X)
-    count = -1
 
-    #pix_val = np.resize(X,(l,size_part))
+    np.random.seed(seed)
+    shuff_matr = X[shuf_order, :]
+    rav_X= np.ravel(shuff_matr)
 
-    for i in range(l):
-        for j in range(size_part):
-            count += 1
-            if count < data_length:
-                pix_val[i, j] = rav_X[shuf_order[count]]
+    pix_val = np.resize(shuff_matr,(l,size_part,X.shape[1]))
 
     rn = np.array([x for x in range(0, size_part)])
     np.random.seed(seed)
@@ -33,24 +28,22 @@ def patchwork_embed(X, wm,alfa, l, seed):
     pix_val_aft_emb = np.zeros(pix_val.shape)
     count = 0
     for j in range(size_part):
-        if j in s1:
-            pix_val_aft_emb[:,j] = pix_val[:,j] + wm[count]*alfa[j]
-            count += 1
-        if j in s2:
-            pix_val_aft_emb[:,j] = pix_val[:,j] - wm[count]*alfa[j]
-            count += 1
+        for k in range(pix_val.shape[2]):
+            if j in s1:
+                pix_val_aft_emb[:,j,k] = pix_val[:,j,k] + wm[count]*alfa[k]
+                count += 1
+            if j in s2:
+                pix_val_aft_emb[:,j,k] = pix_val[:,j,k] - wm[count]*alfa[k]
+                count += 1
 
-    rav_after_emb= np.ravel(pix_val_aft_emb)[:len(rav_X)]
+    #rav_after_emb= np.ravel(pix_val_aft_emb)[:len(rav_X)]
 
     unshuf_order0 = np.zeros_like(shuf_order)
     unshuf_order0[shuf_order] = np.arange(len(shuf_order))
 
-    orig_matr = np.zeros(X.shape)
-    count=0
-    for i in range(X.shape[0]):
-        for j in range(X.shape[1]):
-            orig_matr[i,j] = rav_after_emb[unshuf_order0[count]]
-            count+=1
+    orig_matr = np.resize(pix_val_aft_emb,X.shape)
+
+    orig_matr = orig_matr[unshuf_order0, :]
 
     print("embed")
     return orig_matr

@@ -24,11 +24,11 @@ from patchwork import patchwork_extract
 
 
 def init2matr(name):
-    mat = scipy.io.loadmat(name + '.mat')
+    mat = scipy.io.loadmat(name + '_corrected.mat')
     gt = scipy.io.loadmat(name + '_gt.mat')
-    shape = mat[name + ''].shape
+    shape = mat[name + '_corrected'].shape
     gt_np = gt[name + '_gt']
-    mat_np = mat[name + '']
+    mat_np = mat[name + '_corrected']
 
     mat_np = np.where(mat_np > 65000, 2 ** 16 - mat_np, mat_np)
     mat_np = np.where(mat_np < 0, np.abs(mat_np), mat_np)
@@ -71,6 +71,7 @@ def classify_XGB(X, y, tst_sz):
     # }
 
     for rs in range(40, 45):
+
         counter = Counter(y)
 
         sort_y = sorted(counter)
@@ -102,7 +103,7 @@ def classify_XGB(X, y, tst_sz):
 
     print(list_acc)
     print("Accuracy XGB:  %.3f" % mean(list_acc), name)
-    return mean(list_acc)
+    return feat_list
 
 
 def classify_dec_tree(X, y, tst_sz):
@@ -144,7 +145,7 @@ def disper_chanel(chn):
         tmp = mat_data[:, :, cnt].astype('int32')
         x_quadr = np.mean(tmp ** 2)
         x2 = (np.mean(tmp)) ** 2
-        disp_list.append(x_quadr - x2)
+        disp_list.append((x_quadr - x2))
 
         cnt += 1
 
@@ -302,11 +303,9 @@ def select_need_params(func, kef):
     return embed_func
 
 
-name = 'KSC'
+name = 'indian_pines'
 
 shape, mat_gt, mat_data, = init2matr(name)
-
-
 
 list_gt = search_classify_pix()
 X_orig = np.array(preprocess_X(mat_data, list_gt))
@@ -323,32 +322,34 @@ y = preprocess_Y(list_gt)
 #
 # mean_feat_list = np.mean(mfl, axis=0)
 # mfl = mean_feat_list.tolist()
-mse_list = []
-row= select_need_params(disper_chanel(176),0.0017)
+# mse_list = []
+
 
 print(shape)
-half_c=[50]
-list_const = [1] * shape[2]
-# for count_half in half_c:
-#     for alfa in range(1,12,2):
-patch_list = []
-xgbl = []
-for seed in np.arange(0, 5):
+cc = [2.8e-05,3.9e-05]
+for c in cc:
+
+    patch_list = []
+    xgbl = []
+    #alfa = [c] * shape[2]
+    row = select_need_params(disper_chanel(shape[2]), c)
+    count_half = 100
     np.random.seed(42)
     wm = np.random.randint(0, 2, size=(shape[0] * shape[1] * shape[2] * 7))
-    alfa = 1
-    count_half = 100
+
+    seed = 42
+
+    #X = embed_to_pix(mat_data, wm,row,1,X.shape[2])
+    X = patchwork_embed(X_orig, wm, row, count_half, seed)
+    print("MSE new", mean_squared_error(X_orig, X))
+    xgbl.append(classify_XGB(X, y, 0.25))
+    #patch_list.append(patchwork_extract(X, count_half, seed, alfa))
+    # mse_list.append(mean_squared_error(X_orig, X))
 
 
-    #X = embed_to_pix(mat_data, wm,list_const,1,176)
-    X = patchwork_embed(X_orig, wm, alfa, count_half, seed)
-    patch_list.append(patchwork_extract(X, count_half, seed, alfa))
-# mse_list.append(mean_squared_error(X_orig, X))
-# print("MSE new", mean_squared_error(X_orig, X))
-xgbl.append(classify_XGB(X, y, 0.25))
 
-# print(xgbl, count_half, alfa)
-# print(sum(xgbl)/len(xgbl))
+
+
 # print(patch_list,count_half,alfa)
 # print(sum(patch_list)/len(patch_list))
 # classify_SVM(X1, y, 0.25)
