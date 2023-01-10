@@ -17,18 +17,21 @@ from sklearn.metrics import mean_squared_error
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LinearRegression
 from statistics import mean
-from patchwork import patchwork_embed
-from patchwork import patchwork_extract
-# from interp_based import interp_embed
+# from patchwork import patchwork_embed
+# from patchwork import patchwork_extract
+from interp_based import interp_embed
+from lin_regression import lin_regr
 # from interp_based import interp_extract
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import chi2, f_classif, mutual_info_classif
 
 
 def init2matr(name):
-    mat = scipy.io.loadmat(name + '_corrected.mat')
+    mat = scipy.io.loadmat(name + '.mat')
     gt = scipy.io.loadmat(name + '_gt.mat')
-    shape = mat[name + '_corrected'].shape
+    shape = mat[name + ''].shape
     gt_np = gt[name + '_gt']
-    mat_np = mat[name + '_corrected']
+    mat_np = mat[name + '']
 
     mat_np = np.where(mat_np > 65000, 2 ** 16 - mat_np, mat_np)
     mat_np = np.where(mat_np < 0, np.abs(mat_np), mat_np)
@@ -71,9 +74,7 @@ def classify_XGB(X, y, tst_sz):
     # }
 
     for rs in range(40, 45):
-
         counter = Counter(y)
-
         sort_y = sorted(counter)
         new_y = [i for i in range(0, len(sort_y))]
 
@@ -81,7 +82,6 @@ def classify_XGB(X, y, tst_sz):
             for j in range(len(y)):
                 if y[j] == sort_y[i]:
                     y[j] = new_y[i]
-
         np.random.seed(rs)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=tst_sz, random_state=rs)
         np.random.seed(rs)
@@ -169,13 +169,11 @@ def disper_noise():
 
 # встраивание во все каналы во всё изображение
 def old_embed(mat, wm, delt):
-
     matrix = np.zeros((len(list_gt), shape[2]))
 
     for i in range(len(list_gt)):
         print(i)
         for cnt in range(shape[2]):
-
             tmp = list_gt[i][0]
             tmp2 = list_gt[i][1]
             matrix[i, cnt] = np.around((np.floor(mat[tmp, tmp2, cnt] / (2 * delt[cnt])) * 2 *
@@ -218,9 +216,12 @@ def embed_to_pix(cont, wm, delt, vol_wm, count_prior_canal):
     random_pix.sort()
     short_rand = random_pix[0:int(len(random_pix))]
 
-    mfl=np.arange(0,shape[2])
+    mfl = np.arange(0, shape[2])
+
     if delt:
         sort_canal = mfl.argsort()[0:count_prior_canal]
+        sort_canal = need_canals
+        print(sort_canal)
     else:
         sort_canal = []
 
@@ -303,51 +304,93 @@ def select_need_params(func, kef):
     return embed_func
 
 
-name = 'indian_pines'
+from sklearn.feature_selection import RFE
+
+name = 'KSC'
 
 shape, mat_gt, mat_data, = init2matr(name)
 
 list_gt = search_classify_pix()
 X_orig = np.array(preprocess_X(mat_data, list_gt))
 y = preprocess_Y(list_gt)
-# mat_interp = interp_embed(mat_data, wm)
-# X_interp = preprocess_X(mat_interp[0], list_gt)
-# classify_XGB(X_interp, y, 0.25)
+row = select_need_params(disper_chanel(shape[2]), 0.0016)
+rs=42
+for cn in range(50, 177, 20):
+    # counter = Counter(y)
+    # sort_y = sorted(counter)
+    # new_y = [i for i in range(0, len(sort_y))]
+    #
+    # for i in range(len(sort_y)):
+    #     for j in range(len(y)):
+    #         if y[j] == sort_y[i]:
+    #             y[j] = new_y[i]
+    # np.random.seed(rs)
+    # X_train, X_test, y_train, y_test = train_test_split(X_orig, y, test_size=0.25, random_state=rs)
+    # np.random.seed(rs)
+    # # objective='multi:softmax',eval_metric='mlogloss', colsample_bytree = 0.7, eta = 0.5, max_depth = 4, n_estimators = 200
+    # model = XGBClassifier(random_state=42, use_label_encoder=None, objective='multi:softmax',
+    #                       eval_metric='mlogloss')
+    # #model = RandomForestClassifier(random_state=42, n_estimators=100)
+    # selector = RFE(model, n_features_to_select=cn, step=1)
+    # selector = selector.fit(X_train, y_train)
+    # my_select = selector.support_
+    # print(selector.support_)
+    # print(selector.ranking_)
+
+
+    #print(need_canals)
+    need_canals= [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 19, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 41, 42, 43, 44, 46, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 62, 64, 65, 68, 69, 70, 71, 72, 73, 74, 75, 77, 79, 80, 81, 84, 86, 87, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 102, 103, 104, 105, 106, 108, 112, 113, 114, 116, 117, 118, 119, 120, 121, 122, 123, 124, 126, 127, 129, 130, 131, 133, 134, 135, 138, 141, 143, 145, 147, 148, 149, 150, 152, 153, 155, 156, 157, 158, 159, 161, 162, 163, 164, 168, 169, 170, 172]
+    count_half = 100
+    alfa = [13] * shape[2]
+    np.random.seed(42)
+    wm = np.random.randint(0, 2, size=(shape[0] * shape[1] * shape[2] * 7))
+    X = embed_to_pix(mat_data, wm, row, 1, 5099)
+    print("MSE new", mean_squared_error(X_orig, X))
+    classify_XGB(X, y, 0.25)
+"""
+lin_regr(X_orig,y,0.25)
+#classify_XGB(X_interp, y, 0.25)
 #mat_extract = interp_extract(mat_interp[0],mat_interp[1])
 # print(mat_data==mat_extract)
 
 #print(mean_squared_error(X_interp, X_orig))
 
-# mfl = classify_XGB(X_orig, y, 0.25)
-#
-# mean_feat_list = np.mean(mfl, axis=0)
-# mfl = mean_feat_list.tolist()
-# mse_list = []
+#mfl = classify_XGB(X_orig, y, 0.25)
+#mean_feat_list = np.mean(mfl, axis=0)
+
+mse_list = []
+# np.savetxt("XGB_feat_importance_ind_pines_pryam.csv", mfl, delimiter=",")
+
+# from numpy import genfromtxt
+# mfl = genfromtxt('XGB_feat_importance_ind_pines_pryam.csv', delimiter=',')
+# print(shape)
 
 
+#for c in np.arange(434,1701,50):
 print(shape)
-cc = [2.8e-05,3.9e-05]
-for c in cc:
-
-    patch_list = []
-    xgbl = []
-    #alfa = [c] * shape[2]
-    row = select_need_params(disper_chanel(shape[2]), c)
-    count_half = 100
-    np.random.seed(42)
-    wm = np.random.randint(0, 2, size=(shape[0] * shape[1] * shape[2] * 7))
-
-    seed = 42
-
-    #X = embed_to_pix(mat_data, wm,row,1,X.shape[2])
-    X = patchwork_embed(X_orig, wm, row, count_half, seed)
-    print("MSE new", mean_squared_error(X_orig, X))
-    xgbl.append(classify_XGB(X, y, 0.25))
-    #patch_list.append(patchwork_extract(X, count_half, seed, alfa))
-    # mse_list.append(mean_squared_error(X_orig, X))
+patch_list = []
+xgbl = []
 
 
 
+seed = 42
+# for sz in np.arange(22,35,1):
+# mfl = sz*mean_feat_list
+
+# mat_interp = interp_embed(mat_data, wm,alfa)
+# X_interp = preprocess_X(mat_interp, list_gt)
+# mat_interp2 = interp_embed(mat_data, wm,alfa)
+#
+# X_interp2 = preprocess_X(mat_interp2, list_gt)
+#
+#X = patchwork_embed(X_orig, wm, row, count_half, seed)
+print("MSE new", mean_squared_error(X_orig, X_interp))
+#print("MSE new", mean_squared_error(X_orig, X_interp2))
+xgbl.append(classify_XGB(X_interp, y, 0.25))
+
+#classify_XGB(X_interp2, y, 0.25)
+#patch_list.append(patchwork_extract(X, count_half, seed, alfa))
+# mse_list.append(mean_squared_error(X_orig, X))
 
 
 # print(patch_list,count_half,alfa)
@@ -355,6 +398,7 @@ for c in cc:
 # classify_SVM(X1, y, 0.25)
 # classify_RFC(X1,y,0.25)
 # classify_dec_tree(X1,y,0.25)
+X_PCA = prepare_PCA(X_interp, 12) 
+#classify_XGB(X_PCA, y, 0.25)
 
-X_PCA = prepare_PCA(X_orig, 12)
-classify_XGB(X_PCA, y, 0.25)
+"""
