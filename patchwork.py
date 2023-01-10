@@ -6,16 +6,13 @@ from statistics import mean
 
 def patchwork_embed(X, wm,alfa, l, seed):
 
-    data_length = len(np.ravel(X))
     size_part= math.ceil(X.size / l)
     shuf_order = np.arange(X.shape[0])
     np.random.seed(seed)
     np.random.shuffle(shuf_order)
 
-
     np.random.seed(seed)
     shuff_matr = X[shuf_order, :]
-    rav_X= np.ravel(shuff_matr)
 
     pix_val = np.resize(shuff_matr,(l,size_part,X.shape[1]))
 
@@ -28,13 +25,13 @@ def patchwork_embed(X, wm,alfa, l, seed):
     pix_val_aft_emb = np.zeros(pix_val.shape)
     count = 0
     for j in range(size_part):
-        for k in range(pix_val.shape[2]):
-            if j in s1:
-                pix_val_aft_emb[:,j,k] = pix_val[:,j,k] + wm[count]*alfa[k]
-                count += 1
-            if j in s2:
-                pix_val_aft_emb[:,j,k] = pix_val[:,j,k] - wm[count]*alfa[k]
-                count += 1
+        #for k in range(pix_val.shape[2]):
+        if j in s1:
+            pix_val_aft_emb[:,j,:] = pix_val[:,j,:] + wm[count:count+X.shape[1]]*alfa
+            count += X.shape[1]
+        if j in s2:
+            pix_val_aft_emb[:,j,:] = pix_val[:,j,:] - wm[count:count+X.shape[1]]*alfa
+            count += X.shape[1]
 
     #rav_after_emb= np.ravel(pix_val_aft_emb)[:len(rav_X)]
 
