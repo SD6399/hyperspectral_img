@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def interp_embed(mat, wm):
+def interp_embed(mat, wm,need):
     interp_mat = np.zeros(mat.shape)
 
     for i in range(0, mat.shape[0], 2):
@@ -18,6 +18,7 @@ def interp_embed(mat, wm):
     count = 0
     embed=[]
     for k in range(0, interp_mat.shape[2]):
+        print(k)
         for i in range(0, interp_mat.shape[0], 2):
             for j in range(0, interp_mat.shape[1], 2):
                 d = np.zeros(3)
@@ -28,7 +29,7 @@ def interp_embed(mat, wm):
                     d[2] = np.abs(interp_mat[i, j, k] - interp_mat[i + 1, j + 1, k])
                     for ii in range(len(d)):
                         if d[ii] >= 1:
-                            n[ii] = np.floor(np.log2(d[ii]))
+                            n[ii] = np.floor(np.log2(d[ii])*need[k])
                         else:
                             n[ii] = 0
                     new_mat[i, j, k] = interp_mat[i, j, k]
@@ -57,7 +58,8 @@ def interp_embed(mat, wm):
                         new_mat[i + 1, j + 1, k] = interp_mat[i + 1, j + 1, k]
                     count += int(n[0] + n[1] + n[2])
 
-    return new_mat,embed
+    print(count)
+    return new_mat
 
 
 def interp_extract(cw,row):
